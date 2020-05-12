@@ -1,8 +1,5 @@
-import gevent.monkey
 import requests
-from gevent.pool import Pool
-
-gevent.monkey.patch_socket()
+from multiprocessing import Pool
 from bs4 import BeautifulSoup
 from datetime import datetime
 import csv
@@ -30,6 +27,39 @@ class URLValidator:
             raise ValueError("Invalid URL: ", args.url, " (ex: python crawler.py http://www.rescale.com )")
 
 
+def get_website(url):
+    try:
+        response = requests.request('GET', url, timeout=5.0)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        results = soup.find_all("a")
+        results = [str(link.get('href')) for link in results]  # get href value from html element
+        results = [link for link in results if link[:4] == "http"]  # keeps links that begin with http
+
+        ## Log WebCrawl  ###
+        buff_output = ""
+        buff_output += url + "\n"
+        for result_url in results:
+            buff_output+= " "+result_url+"\n"
+        print(buff_output)
+
+        results = list(set(results))  # Removes duplicates
+        website_data = {
+            "url": url,
+            "html": str(response.text),
+            "created_at": datetime.now().isoformat(),
+            "links": results,
+            "success": True,
+        }
+        return website_data
+    except:
+        return {
+            "url": url,
+            "html": None,
+            "created_at": datetime.now(),
+            "links": [],
+            "success": False}
+        pass
+
 class Crawler:
 
     def __init__(self):
@@ -38,42 +68,11 @@ class Crawler:
 
     @staticmethod
     def multi_process(urls):
-
-        def get_website(url):
-            try:
-                response = requests.request('GET', url, timeout=5.0)
-                soup = BeautifulSoup(response.text, 'html.parser')
-                results = soup.find_all("a")
-                results = [str(link.get('href')) for link in results]  # get href value from html element
-                results = [link for link in results if link[:4] == "http"]  # keeps links that begin with http
-
-                ### Log WebCrawl  ###
-
-                print(url)
-                for result_url in results:
-                    print("  ", result_url)
-
-                results = list(set(results))  # Removes duplicates
-                website_data = {
-                    "url": url,
-                    "html": str(response.text),
-                    "created_at": datetime.now().isoformat(),
-                    "links": results,
-                    "success": True,
-                }
-                return website_data
-            except:
-                return {
-                    "url": url,
-                    "html": None,
-                    "created_at": datetime.now(),
-                    "links": [],
-                    "success": False}
-                pass
-
-        pool = Pool(20)
-        data = pool.map(get_website, urls)
+        data= []
+        with Pool(20) as pool:
+            data = pool.map(get_website, urls)
         return data
+
 
     @staticmethod
     def save_data(listofDicts):
