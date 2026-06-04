@@ -29,4 +29,13 @@ The goal of this project is to build a very simple web crawler which fetches URL
     4. "links": The scraped links
     
     5. "success": True if no errors were raised, False if an error was raised
+
+# Development notes
+
+The crawler writes `data.csv` in the project directory; that output is ignored
+by Git so repeated demos do not dirty the checkout.
+
+Lightweight syntax check:
+
+`python -m compileall crawler.py`
     
