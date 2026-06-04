@@ -10,6 +10,10 @@ The goal of this project is to build a very simple web crawler which fetches URL
  
   `python crawler.py https://rescale.com 100 `
 
+Offline fixture crawl:
+
+ `python crawler.py fixture://home 4`
+
  # Arguments
  
   1. `url` The URL to begin crawling from, this has [validation](https://docs.djangoproject.com/en/3.0/ref/validators/#urlvalidator) to ensure it follows http/https schema 
@@ -38,4 +42,8 @@ by Git so repeated demos do not dirty the checkout.
 Lightweight syntax check:
 
 `python -m compileall crawler.py`
+
+Smoke test:
+
+`python smoke_test.py`
     

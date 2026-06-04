@@ -9,6 +9,14 @@ import collections
 import re
 
 
+FIXTURE_SITE = {
+    "fixture://home": '<a href="fixture://about">About</a><a href="fixture://docs">Docs</a>',
+    "fixture://about": '<a href="fixture://home">Home</a>',
+    "fixture://docs": '<a href="fixture://home">Home</a><a href="fixture://api">API</a>',
+    "fixture://api": '<p>Fixture API page</p>',
+}
+
+
 class URLValidator:
     def __init__(self):
         self.url_validation_re = re.compile(
@@ -23,17 +31,48 @@ class URLValidator:
         if url is None:
             raise ValueError("Must define url to crawl: ./crawler.py http://www.rescale.com ")
 
+        if url.startswith("fixture://"):
+            return
+
         if re.match(self.url_validation_re, url) is None:
-            raise ValueError("Invalid URL: ", args.url, " (ex: python crawler.py http://www.rescale.com )")
+            raise ValueError("Invalid URL: {} (ex: python crawler.py http://www.rescale.com )".format(url))
+
+
+def parse_links(html):
+    soup = BeautifulSoup(html, 'html.parser')
+    results = soup.find_all("a")
+    results = [str(link.get('href')) for link in results]
+    return [link for link in results if link[:4] == "http" or link.startswith("fixture://")]
+
+
+def get_fixture_website(url):
+    html = FIXTURE_SITE.get(url)
+    if html is None:
+        return {
+            "url": url,
+            "html": None,
+            "created_at": datetime.now().isoformat(),
+            "links": [],
+            "success": False}
+
+    links = parse_links(html)
+    print(url + "\n" + "\n".join(" " + result_url for result_url in links))
+    return {
+        "url": url,
+        "html": html,
+        "created_at": datetime.now().isoformat(),
+        "links": links,
+        "success": True,
+    }
 
 
 def get_website(url):
+    if url.startswith("fixture://"):
+        return get_fixture_website(url)
+
     try:
         response = requests.request('GET', url, timeout=5.0)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        results = soup.find_all("a")
-        results = [str(link.get('href')) for link in results]  # get href value from html element
-        results = [link for link in results if link[:4] == "http"]  # keeps links that begin with http
+        results = parse_links(response.text)
 
         ## Log WebCrawl  ###
         buff_output = ""
@@ -68,6 +107,8 @@ class Crawler:
 
     @staticmethod
     def multi_process(urls):
+        if any(url.startswith("fixture://") for url in urls):
+            return [get_website(url) for url in urls]
         data= []
         with Pool(20) as pool:
             data = pool.map(get_website, urls)
